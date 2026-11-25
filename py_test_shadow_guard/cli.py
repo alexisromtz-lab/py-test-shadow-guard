@@ -8,9 +8,8 @@ import re
 import subprocess
 import sys
 
-from . import nucleo
+from . import __version__, nucleo
 
-VERSION = "0.1.0"
 _ES_TEST = re.compile(r"(^test_.*|.*_test)\.py$")
 
 
@@ -68,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--repo", default=".", help="ruta del repositorio git (por defecto .)")
     p.add_argument("--json", action="store_true", help="salida legible por máquina")
     p.add_argument("--self-test", action="store_true", help="canario interno 20 -> 1")
-    p.add_argument("--version", action="version", version=f"py-test-shadow-guard {VERSION}")
+    p.add_argument("--version", action="version", version=f"py-test-shadow-guard {__version__}")
     args = p.parse_args(argv)
 
     if args.self_test:

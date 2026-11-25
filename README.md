@@ -17,14 +17,33 @@ Este detector compara dos o más refs contra su base y lo dice antes del merge.
 Sin dependencias. Python ≥ 3.11.
 
 ```console
-$ pip install git+https://github.com/alexisromtz-lab/py-test-shadow-guard@v0.2.0
+$ pip install git+https://github.com/alexisromtz-lab/py-test-shadow-guard@v0.2.1
 # o, sin instalar nada:
-$ uvx --from git+https://github.com/alexisromtz-lab/py-test-shadow-guard@v0.2.0 \
+$ uvx --from git+https://github.com/alexisromtz-lab/py-test-shadow-guard@v0.2.1 \
     py-test-shadow-guard --base origin/main --ref origin/rama-a --ref origin/rama-b
 ```
 
 No hay wheel en PyPI todavía: `pip install py-test-shadow-guard` por nombre corto
 **no resuelve**. La instalación reproducible es la URL de repositorio con su tag.
+
+### Como hook de `pre-commit`
+
+```yaml
+repos:
+  - repo: https://github.com/alexisromtz-lab/py-test-shadow-guard
+    rev: v0.2.1
+    hooks:
+      - id: py-test-shadow-guard
+        args: ["--base", "origin/main", "--ref", "HEAD", "--ref", "origin/rama-b"]
+```
+
+```console
+$ pre-commit run py-test-shadow-guard --hook-stage manual
+```
+
+El hook es `manual` a propósito: necesita refs ya traídas y **dos** ramas, así que no
+puede colgar de `git commit` sin inventarse el segundo ref. Ponlo donde ya tengas la
+cola de PRs a la vista (el job de CI, el pre-push, o a mano antes de mergear).
 
 ## Uso
 

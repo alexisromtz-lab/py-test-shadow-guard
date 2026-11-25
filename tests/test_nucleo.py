@@ -208,3 +208,25 @@ class TestDuplicadoIdentico(unittest.TestCase):
         self.assertEqual(r.rc, 1)
         self.assertEqual(len(r.rojos), 1)
         self.assertEqual(r.identicos, [])
+
+
+class TestVersionDeclarada(unittest.TestCase):
+    """``--version`` y ``pyproject`` leen la misma fuente.
+
+    Medido el 26-Nov-2026: ``cli.VERSION`` seguía en 0.1.0 mientras el paquete
+    publicado era 0.2.0; el flag mentía y ninguna prueba lo miraba.
+    """
+
+    def test_flag_version_repite_el_paquete(self):
+        import contextlib
+        import io
+
+        from py_test_shadow_guard import __version__
+        from py_test_shadow_guard.cli import main
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            with self.assertRaises(SystemExit) as ctx:
+                main(["--version"])
+        self.assertEqual(ctx.exception.code, 0)
+        self.assertEqual(buf.getvalue().strip(), f"py-test-shadow-guard {__version__}")

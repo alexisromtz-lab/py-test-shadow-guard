@@ -1,0 +1,8 @@
+- id: py-test-shadow-guard
+  name: py-test-shadow-guard (tests que un merge limpio borra)
+  description: Compara refs contra su base y avisa si un método de test se sobrescribe.
+  entry: py-test-shadow-guard
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [manual]
