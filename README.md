@@ -115,6 +115,27 @@ $ py-test-shadow-guard --base origin/main $(git for-each-ref --format='--ref %(r
   el mismo nombre (`conftest` no testeado).
 - No sustituye a `pytest --collect-only -q`: lo complementa antes del merge, cuando
   todavía se puede renombrar el que llega último.
+- Un archivo que no compila sale como `NO_MEDIDO` con su motivo, nunca como «cero
+  tests». En 3.11 un byte nulo lanza `ValueError` y en 3.12+ `SyntaxError`: ambas se
+  atrapan, y por eso la primera versión podía reventar en el suelo declarado.
+- La colisión **dentro** de una sola rama usa el mismo predicado que la de entre
+  ramas (ordinal compartido en la misma clase). Antes agrupaba por nombre exacto: dos
+  predicados para un solo fenómeno, y `test_07_a` / `test_07_b` en el mismo archivo
+  pasaban limpios.
+
+## Conformidad medida
+
+El predicado de colisión de este paquete se mide contra
+[`composicion-core`](https://github.com/alexisromtz-lab/composicion-core), que publica el
+corpus de conformidad como datos y puntúa a cada herramienta contra él:
+
+```bash
+composicion-core --sonda shadow-guard --ruta .
+```
+
+Marcador del 26-Nov-2026: **10 rojo · 10 aviso · 10 no_medido · 0 discrepancias · 0 no comparables**. `composicion-core` no es una dependencia
+—estos paquetes siguen sin dependencias para poder correr con `uvx`— sino un juez
+externo: si los dos divergen, el que se equivoca se ve.
 
 ## Licencia
 

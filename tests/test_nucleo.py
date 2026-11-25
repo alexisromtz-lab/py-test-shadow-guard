@@ -53,6 +53,20 @@ class TestExtraccion(unittest.TestCase):
     def test_sintaxis_rota_no_revienta(self):
         self.assertEqual(nucleo.metodos("def (:", "tests/test_x.py"), [])
 
+    def test_una_fuente_ilegible_no_es_un_archivo_sin_tests(self):
+        obtenidos, motivo = nucleo.leer("def (:", "tests/test_x.py")
+        self.assertEqual(obtenidos, [])
+        self.assertTrue(motivo and "sintaxis" in motivo)
+
+        legibles, motivo_limpio = nucleo.leer(FUENTE, "tests/test_x.py")
+        self.assertTrue(legibles)
+        self.assertIsNone(motivo_limpio)
+
+    def test_byte_nulo_no_revienta_en_ninguna_version(self):
+        obtenidos, motivo = nucleo.leer("x = 1\x00y = 2\n", "tests/test_x.py")
+        self.assertEqual(obtenidos, [])
+        self.assertTrue(motivo)
+
 
 def _comparar(metodos_a, metodos_b, base=()):
     return nucleo.comparar(
@@ -109,6 +123,24 @@ class TestPredicado(unittest.TestCase):
     def test_duplicado_dentro_de_una_rama_es_rojo(self):
         doble = nucleo.Metodo("t.py", "C", "test_07", 1)
         r = nucleo.comparar({}, {"a": {"t.py": [doble, nucleo.Metodo("t.py", "C", "test_07", 8)]}})
+        self.assertEqual(len(r.rojos), 1)
+        self.assertIn("duplicado dentro de a", r.rojos[0].motivo)
+
+    def test_dos_nombres_distintos_con_el_mismo_ordinal_en_una_rama_es_rojo(self):
+        # El mismo defecto del caso 20 -> 1, pero sin rama: un solo archivo con
+        # test_07_alpha y test_07_beta en la misma clase. El chequeo por nombre
+        # exacto no lo veía porque los nombres difieren.
+        r = nucleo.comparar(
+            {},
+            {
+                "a": {
+                    "t.py": [
+                        nucleo.Metodo("t.py", "C", "test_07_alpha", 1),
+                        nucleo.Metodo("t.py", "C", "test_07_beta", 8),
+                    ]
+                }
+            },
+        )
         self.assertEqual(len(r.rojos), 1)
         self.assertIn("duplicado dentro de a", r.rojos[0].motivo)
 

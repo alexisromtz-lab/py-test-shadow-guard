@@ -102,10 +102,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"SIN SUJETO: ninguna rama toca un archivo de test entre {args.base} y las refs.")
         return 0
 
+    no_medidos: list[str] = []
+
     base = {}
     for ruta in rutas:
         fuente = _leer(args.repo, args.base, ruta)
-        base[ruta] = nucleo.metodos(fuente, ruta) if fuente else []
+        if fuente is None:
+            base[ruta] = []
+            no_medidos.append(f"{args.base}/{ruta}: no existe en la base")
+            continue
+        base[ruta], motivo = nucleo.leer(fuente, ruta)
+        if motivo:
+            no_medidos.append(f"{args.base}/{ruta}: {motivo}")
 
     ramas: dict[str, dict[str, list[nucleo.Metodo]]] = {}
     for ref in args.ref:
@@ -114,7 +122,9 @@ def main(argv: list[str] | None = None) -> int:
             fuente = _leer(args.repo, ref, ruta)
             if fuente is None:
                 fuente = _leer(args.repo, args.base, ruta) or ""
-            archivos[ruta] = nucleo.metodos(fuente, ruta)
+            archivos[ruta], motivo = nucleo.leer(fuente, ruta)
+            if motivo:
+                no_medidos.append(f"{ref}/{ruta}: {motivo}")
         ramas[ref] = archivos
 
     bases_de_par: dict[tuple[str, str], dict[str, list[nucleo.Metodo]]] = {}
@@ -132,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
             bases_de_par[(ref_a, ref_b)] = archivos
 
     r = nucleo.comparar(base, ramas, bases_de_par=bases_de_par)
+    r.no_medidos = no_medidos
 
     if args.json:
         print(
@@ -144,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
                     "rutas": rutas,
                     "nuevos": r.nuevos,
                     "ingenuo": r.ingenuo,
+                    "no_medidos": r.no_medidos,
                     "rojos": [
                         {"clase": h.clase, "a": h.a.rotulo(), "b": h.b.rotulo(), "motivo": h.motivo}
                         for h in r.rojos
@@ -163,11 +175,14 @@ def main(argv: list[str] | None = None) -> int:
         print(h.linea())
     for h in r.avisos:
         print(h.linea())
+    for linea in r.no_medidos:
+        print(f"NO_MEDIDO  {linea}")
     nuevos = " · ".join(f"{ref}: {n}" for ref, n in r.nuevos.items())
     print(
         f"\n{r.rc and 'ROJO' or 'VERDE'}: {len(r.rojos)} colision(es) intra-clase · "
         f"{len(r.avisos)} ordinal(es) global(es) · nuevos medidos {nuevos}"
         f" · predicado ingenuo habria disparado {r.ingenuo}"
+        + (f" · NO_MEDIDO {len(r.no_medidos)}" if r.no_medidos else "")
     )
     return r.rc
 

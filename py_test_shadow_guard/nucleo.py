@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import ast
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 _ORDINAL = re.compile(r"^test_?(\d+)")
 
@@ -61,18 +61,28 @@ class Resultado:
     avisos: list[Hallazgo]
     nuevos: dict[str, int]
     ingenuo: int
+    no_medidos: list[str] = field(default_factory=list)
 
     @property
     def rc(self) -> int:
         return 1 if self.rojos else 0
 
 
-def metodos(fuente: str, ruta: str) -> list[Metodo]:
-    """Métodos de test de un archivo. `unittest` usa el prefijo `test` a secas."""
+def leer(fuente: str, ruta: str) -> tuple[list[Metodo], str | None]:
+    """Métodos de test del archivo y, si no se pudo leer, el motivo.
+
+    Un archivo que no compila no tiene cero tests: no tiene medición. Devolver
+    `[]` convierte "no pude mirar" en "no hay nada", que es la misma clase de
+    error que confundir una deuda sin techo con una holgura.
+    """
     try:
         arbol = ast.parse(fuente, filename=ruta)
-    except SyntaxError:
-        return []
+    except SyntaxError as exc:
+        detalle = getattr(exc, "msg", str(exc))
+        linea = getattr(exc, "lineno", None)
+        return [], f"sintaxis: {detalle}" + (f" (línea {linea})" if linea else "")
+    except ValueError as exc:  # 3.11: byte nulo en la fuente
+        return [], f"fuente ilegible: {exc}"
     salida: list[Metodo] = []
 
     def visita(nodos, clase: str | None) -> None:
@@ -85,7 +95,16 @@ def metodos(fuente: str, ruta: str) -> list[Metodo]:
                     salida.append(Metodo(ruta, clase, nodo.name, nodo.lineno))
 
     visita(arbol.body, None)
-    return salida
+    return salida, None
+
+
+def metodos(fuente: str, ruta: str) -> list[Metodo]:
+    """Métodos de test de un archivo. `unittest` usa el prefijo `test` a secas.
+
+    Atajo tolerante: pierde el motivo de la falta de medición. Quien deba
+    distinguir "sin tests" de "ilegible" usa `leer`.
+    """
+    return leer(fuente, ruta)[0]
 
 
 def _mismo_sujeto(a: Metodo, b: Metodo) -> bool:
@@ -135,12 +154,15 @@ def comparar(
 
     # Duplicado dentro de una misma rama: el archivo ya está roto antes del merge.
     for ref, lista in nuevos.items():
-        vistos: dict[tuple[str, str | None, str], list[Metodo]] = {}
-        for m in lista:
-            vistos.setdefault((m.ruta, m.clase, m.nombre), []).append(m)
-        for grupo in vistos.values():
-            if len(grupo) > 1:
-                rojos.append(Hallazgo("rojo", grupo[0], grupo[1], f"duplicado dentro de {ref}"))
+        for i, x in enumerate(lista):
+            for y in lista[i + 1:]:
+                h = _compara_par(x, y, nuevos_de_base=True)
+                if h is None:
+                    continue
+                if h.clase == "rojo":
+                    rojos.append(Hallazgo("rojo", x, y, f"duplicado dentro de {ref}"))
+                else:
+                    avisos.append(h)
 
     refs = list(ramas)
     for i, ref_a in enumerate(refs):

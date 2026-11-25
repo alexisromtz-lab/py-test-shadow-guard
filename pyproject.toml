@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py-test-shadow-guard"
-version = "0.1.0"
+version = "0.1.1"
 description = "Detecta metodos de test que se sobrescriben en silencio tras un merge limpio de git."
 readme = "README.md"
 requires-python = ">=3.11"
