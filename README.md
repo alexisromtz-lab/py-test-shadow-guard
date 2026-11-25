@@ -17,10 +17,14 @@ Este detector compara dos o más refs contra su base y lo dice antes del merge.
 Sin dependencias. Python ≥ 3.11.
 
 ```console
-$ pip install py-test-shadow-guard
+$ pip install git+https://github.com/alexisromtz-lab/py-test-shadow-guard@v0.2.0
 # o, sin instalar nada:
-$ uvx py-test-shadow-guard --base origin/main --ref origin/rama-a --ref origin/rama-b
+$ uvx --from git+https://github.com/alexisromtz-lab/py-test-shadow-guard@v0.2.0 \
+    py-test-shadow-guard --base origin/main --ref origin/rama-a --ref origin/rama-b
 ```
+
+No hay wheel en PyPI todavía: `pip install py-test-shadow-guard` por nombre corto
+**no resuelve**. La instalación reproducible es la URL de repositorio con su tag.
 
 ## Uso
 
