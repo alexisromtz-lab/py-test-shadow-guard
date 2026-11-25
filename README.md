@@ -39,8 +39,14 @@ además el `git merge-base` real de cada pareja de ramas.
 
 Salida:
 
-- **ROJO** — misma clase y mismo nombre, o misma clase y mismo ordinal con distinto
-  nombre. Python sobrescribe en silencio: es pérdida de cobertura.
+- **ROJO** — misma clase y mismo nombre **con cuerpo distinto**, o misma clase y
+  mismo ordinal con distinto nombre. Python sobrescribe en silencio: es pérdida
+  de cobertura.
+- **IDENTICO** — misma clase, mismo nombre y mismo cuerpo a los dos lados. El
+  merge deja el método repetido y las dos copias son la misma función: **no se
+  pierde ningún test**. No es un rojo y tampoco se calla: se cuenta aparte. La
+  huella es el `ast.dump` del cuerpo sin números de línea, así que el mismo test
+  insertado en offsets distintos —el caso real entre dos agentes— coincide.
 - **AVISO** — mismo ordinal en clases distintas. No rompe la ejecución; degrada la
   trazabilidad si alguien busca `test_37` en el log y hay dos.
 - **`--json`** — el mismo contenido, para consumirlo desde un pipeline.
@@ -65,6 +71,7 @@ ROJO  …::ElPredicadoMuerde.test_35_un_censo_todo_de_simulacion_no_tiene_techo_
 
 ROJO: 1 colision(es) intra-clase · 0 ordinal(es) global(es) · nuevos medidos
 669da106: 27 · 55058449: 6 · predicado ingenuo habria disparado 3
+       · duplicados con cuerpo identico 0 (no son perdida)
 ```
 
 Un detector ingenuo —«mismo ordinal entre dos refs»— habría disparado **3** veces
@@ -85,6 +92,24 @@ parecen «nuevos de los dos lados» y se marcan como duplicados.
 Con el `git merge-base` de cada pareja: **76 → 1** rojo, y el rojo que queda es
 verdadero. Hay dos tests que cubren exactamente esa diferencia, en
 `tests/test_nucleo.py::TestBasePorPareja`.
+
+## La lección que costó 75 falsos rojos
+
+La primera versión comparaba `(archivo, clase, ordinal, nombre)` y nunca el
+cuerpo. Sobre 15 PRs reales abiertos contra un tronco (105 parejas) marcó **2
+parejas en colisión simbólica**, con 75 hallazgos por nombre compartido.
+
+Los 75 eran el caso trivial: **el mismo `def`, con el mismo cuerpo, a los dos
+lados**. `git merge` deja el método repetido y las dos copias son la misma
+función; Python ejecuta una y no se pierde nada. Falsos positivos: 75 de 75.
+
+> Un predicado que compara nombres no mide pérdida: mide coincidencia.
+
+Con la huella del cuerpo (`ast.dump` sin números de línea) en el predicado:
+**75 → 0**. El canal `IDENTICO` publica la cuenta para que el cero sea legible
+como *mirado y no hay*, y el corpus fija las dos direcciones del error —cuerpo
+igual ⇒ `IDENTICO`, cuerpo distinto ⇒ `ROJO`— para que el arreglo no se pueda
+deshacer sin romper un test.
 
 ## En CI
 
@@ -111,8 +136,10 @@ $ py-test-shadow-guard --base origin/main $(git for-each-ref --format='--ref %(r
 ## Límites declarados
 
 - Solo archivos `test_*.py` / `*_test.py`.
-- Compara firmas, no cuerpos: dos `test_35_` en la misma clase son rojo aunque uno
-  sea un `skip`.
+- Compara cuerpos sólo donde el cuerpo es la pregunta: mismo nombre y mismo
+  cuerpo es `IDENTICO`, mismo nombre y cuerpo distinto es `ROJO`. Dos ordinales
+  iguales con nombres distintos siguen siendo rojo aunque uno sea un `skip`: ahí
+  lo que choca es el ordinal, no el cuerpo.
 - No detecta shadowing entre módulos distintos ni entre archivos que se importen con
   el mismo nombre (`conftest` no testeado).
 - No sustituye a `pytest --collect-only -q`: lo complementa antes del merge, cuando

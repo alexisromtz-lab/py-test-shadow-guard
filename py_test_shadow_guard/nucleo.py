@@ -11,6 +11,7 @@ git deja pasar como limpio y que Python resuelve borrando el primero.
 from __future__ import annotations
 
 import ast
+import hashlib
 import re
 from dataclasses import dataclass, field
 
@@ -29,6 +30,7 @@ class Metodo:
     clase: str | None
     nombre: str
     linea: int
+    huella: str = ""
 
     @property
     def ordinal(self) -> int | None:
@@ -45,13 +47,13 @@ class Metodo:
 
 @dataclass(frozen=True)
 class Hallazgo:
-    clase: str  # "rojo" | "aviso"
+    clase: str  # "rojo" | "aviso" | "identico"
     a: Metodo
     b: Metodo
     motivo: str
 
     def linea(self) -> str:
-        etiqueta = "ROJO" if self.clase == "rojo" else "AVISO"
+        etiqueta = {"rojo": "ROJO", "aviso": "AVISO", "identico": "IDÉNTICO"}[self.clase]
         return f"{etiqueta}  {self.a.rotulo()}  vs  {self.b.rotulo()}   ({self.motivo})"
 
 
@@ -62,10 +64,17 @@ class Resultado:
     nuevos: dict[str, int]
     ingenuo: int
     no_medidos: list[str] = field(default_factory=list)
+    identicos: list[Hallazgo] = field(default_factory=list)
 
     @property
     def rc(self) -> int:
         return 1 if self.rojos else 0
+
+
+def _huella(nodo: ast.stmt) -> str:
+    """Digest del cuerpo: dos ``def`` con la misma huella no se pisan entre sí."""
+    crudo = ast.dump(nodo, annotate_fields=False, include_attributes=False)
+    return hashlib.sha256(crudo.encode("utf-8")).hexdigest()[:16]
 
 
 def leer(fuente: str, ruta: str) -> tuple[list[Metodo], str | None]:
@@ -92,7 +101,7 @@ def leer(fuente: str, ruta: str) -> tuple[list[Metodo], str | None]:
                 visita(nodo.body, anidada)
             elif isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if nodo.name.startswith("test"):
-                    salida.append(Metodo(ruta, clase, nodo.name, nodo.lineno))
+                    salida.append(Metodo(ruta, clase, nodo.name, nodo.lineno, _huella(nodo)))
 
     visita(arbol.body, None)
     return salida, None
@@ -118,6 +127,13 @@ def _compara_par(a: Metodo, b: Metodo, *, nuevos_de_base: bool) -> Hallazgo | No
             return Hallazgo("aviso", a, b, f"ordinal {a.ordinal} repetido entre clases distintas")
         return None
     if a.nombre == b.nombre:
+        if a.huella and a.huella == b.huella:
+            return Hallazgo(
+                "identico",
+                a,
+                b,
+                "misma definición a ambos lados: el método queda repetido y no se pierde ninguno",
+            )
         return Hallazgo("rojo", a, b, "mismo nombre en la misma clase: el segundo borra al primero")
     if a.ordinal is not None and a.ordinal == b.ordinal:
         etiqueta = "ambos nuevos" if nuevos_de_base else "uno heredado"
@@ -151,6 +167,8 @@ def comparar(
 
     rojos: list[Hallazgo] = []
     avisos: list[Hallazgo] = []
+    identicos: list[Hallazgo] = []
+    cubetas = {"rojo": rojos, "aviso": avisos}
 
     # Duplicado dentro de una misma rama: el archivo ya está roto antes del merge.
     for ref, lista in nuevos.items():
@@ -159,10 +177,10 @@ def comparar(
                 h = _compara_par(x, y, nuevos_de_base=True)
                 if h is None:
                     continue
-                if h.clase == "rojo":
-                    rojos.append(Hallazgo("rojo", x, y, f"duplicado dentro de {ref}"))
+                if h.clase == "identico":
+                    identicos.append(Hallazgo("identico", x, y, f"duplicado dentro de {ref}"))
                 else:
-                    avisos.append(h)
+                    cubetas[h.clase].append(Hallazgo(h.clase, x, y, f"duplicado dentro de {ref}"))
 
     refs = list(ramas)
     for i, ref_a in enumerate(refs):
@@ -185,7 +203,7 @@ def comparar(
                 for b in solo_b:
                     h = _compara_par(a, b, nuevos_de_base=True)
                     if h is not None:
-                        (rojos if h.clase == "rojo" else avisos).append(h)
+                        (identicos if h.clase == "identico" else cubetas[h.clase]).append(h)
 
     # Predicado ingenuo: mismo ordinal entre ramas, sin filtrar por base. Es el ruido.
     ingenuo = 0
@@ -197,6 +215,13 @@ def comparar(
                     for b in lista_b:
                         if a.ordinal is not None and a.ordinal == b.ordinal and a.nombre != b.nombre:
                             ingenuo += 1
-    rojos.sort(key=lambda h: (h.a.ruta, h.a.clase or "", h.a.ordinal or 0, h.a.nombre))
-    avisos.sort(key=lambda h: (h.a.ruta, h.a.clase or "", h.a.ordinal or 0, h.a.nombre))
-    return Resultado(rojos, avisos, {ref: len(lista) for ref, lista in nuevos.items()}, ingenuo)
+    for lista in (rojos, avisos, identicos):
+        lista.sort(key=lambda h: (h.a.ruta, h.a.clase or "", h.a.ordinal or 0, h.a.nombre))
+    return Resultado(
+        rojos,
+        avisos,
+        {ref: len(lista) for ref, lista in nuevos.items()},
+        ingenuo,
+        [],
+        identicos,
+    )

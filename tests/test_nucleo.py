@@ -181,3 +181,30 @@ class TestBasePorPareja(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDuplicadoIdentico(unittest.TestCase):
+    """El mismo ``def`` con el mismo cuerpo a los dos lados no pierde un test.
+
+    Medido en 15 PRs reales (26-Nov-2026): 75 hallazgos por nombre compartido y
+    75 cuerpos idénticos. Llamarlos colisión era un falso positivo de 75/75.
+    """
+
+    CUERPO = "class S:\n    def test_algo(self):\n        self.assertEqual(2 + 2, 4)\n"
+
+    def _par(self, fuente_b=None):
+        a, _ = nucleo.leer(self.CUERPO, "t.py")
+        b, _ = nucleo.leer(fuente_b or self.CUERPO, "t.py")
+        return nucleo.comparar({}, {"a": {"t.py": a}, "b": {"t.py": b}})
+
+    def test_mismo_cuerpo_es_identico_y_verde(self):
+        r = self._par()
+        self.assertEqual(r.rc, 0, [h.linea() for h in r.rojos])
+        self.assertEqual(len(r.identicos), 1)
+        self.assertEqual(r.identicos[0].clase, "identico")
+
+    def test_cuerpo_distinto_sigue_rojo(self):
+        r = self._par("class S:\n    def test_algo(self):\n        self.assertTrue(True)\n")
+        self.assertEqual(r.rc, 1)
+        self.assertEqual(len(r.rojos), 1)
+        self.assertEqual(r.identicos, [])

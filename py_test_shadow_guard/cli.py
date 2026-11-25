@@ -164,6 +164,10 @@ def main(argv: list[str] | None = None) -> int:
                         {"clase": h.clase, "a": h.a.rotulo(), "b": h.b.rotulo(), "motivo": h.motivo}
                         for h in r.avisos
                     ],
+                    "identicos": [
+                        {"clase": h.clase, "a": h.a.rotulo(), "b": h.b.rotulo(), "motivo": h.motivo}
+                        for h in r.identicos
+                    ],
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -175,6 +179,8 @@ def main(argv: list[str] | None = None) -> int:
         print(h.linea())
     for h in r.avisos:
         print(h.linea())
+    for h in r.identicos:
+        print(h.linea())
     for linea in r.no_medidos:
         print(f"NO_MEDIDO  {linea}")
     nuevos = " · ".join(f"{ref}: {n}" for ref, n in r.nuevos.items())
@@ -182,6 +188,7 @@ def main(argv: list[str] | None = None) -> int:
         f"\n{r.rc and 'ROJO' or 'VERDE'}: {len(r.rojos)} colision(es) intra-clase · "
         f"{len(r.avisos)} ordinal(es) global(es) · nuevos medidos {nuevos}"
         f" · predicado ingenuo habria disparado {r.ingenuo}"
+        f" · duplicados con cuerpo identico {len(r.identicos)} (no son perdida)"
         + (f" · NO_MEDIDO {len(r.no_medidos)}" if r.no_medidos else "")
     )
     return r.rc
