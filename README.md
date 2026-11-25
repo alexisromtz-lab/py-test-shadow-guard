@@ -116,9 +116,10 @@ $ py-test-shadow-guard --base origin/main $(git for-each-ref --format='--ref %(r
 - No sustituye a `pytest --collect-only -q`: lo complementa antes del merge, cuando
   todavía se puede renombrar el que llega último.
 - Un archivo que no compila sale como `NO_MEDIDO` con su motivo, nunca como «cero
-  tests». Un byte nulo no lo acepta el parser: medido el 25-Nov-2026 sale como
-  `SyntaxError` en 3.12.13 y 3.14.8, y en otras versiones como `ValueError`; ambas se
-  atrapan, y por eso la primera versión podía reventar en el suelo declarado.
+  tests». Un byte nulo no lo acepta el parser: medido el 25-Nov-2026, 3.9.6 lo da
+  como `ValueError` y 3.11.18, 3.12.16, 3.13.18 y 3.14.8 como `SyntaxError`. Se atrapan
+  las dos —y por eso la primera versión podía reventar en el suelo declarado— aunque
+  dentro de `>=3.11`, que es lo que declara el paquete, sólo se midió la segunda.
 - La colisión **dentro** de una sola rama usa el mismo predicado que la de entre
   ramas (ordinal compartido en la misma clase). Antes agrupaba por nombre exacto: dos
   predicados para un solo fenómeno, y `test_07_a` / `test_07_b` en el mismo archivo
