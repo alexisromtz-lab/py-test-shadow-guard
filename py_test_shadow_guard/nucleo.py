@@ -81,7 +81,7 @@ def leer(fuente: str, ruta: str) -> tuple[list[Metodo], str | None]:
         detalle = getattr(exc, "msg", str(exc))
         linea = getattr(exc, "lineno", None)
         return [], f"sintaxis: {detalle}" + (f" (línea {linea})" if linea else "")
-    except ValueError as exc:  # 3.11: byte nulo en la fuente
+    except ValueError as exc:  # otras versiones del parser dan el byte nulo así
         return [], f"fuente ilegible: {exc}"
     salida: list[Metodo] = []
 
