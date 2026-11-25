@@ -1,5 +1,7 @@
 # py-test-shadow-guard
 
+[![ci](https://github.com/alexisromtz-lab/py-test-shadow-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/alexisromtz-lab/py-test-shadow-guard/actions/workflows/ci.yml) ![python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue) ![deps](https://img.shields.io/badge/dependencies-0-brightgreen) ![license](https://img.shields.io/badge/license-MIT-blue)
+
 Un merge de Git puede ser limpio y aun así borrar un test.
 
 Cuando dos ramas agregan métodos a la **misma clase** de test y ambos empiezan por
@@ -142,3 +144,13 @@ externo: si los dos divergen, el que se equivoca se ve.
 ## Licencia
 
 MIT.
+
+## La familia
+
+Tres paquetes con cero dependencias, probados en 3.11, 3.12 y 3.13:
+
+| paquete | qué contesta |
+|---|---|
+| [composicion-core](https://github.com/alexisromtz-lab/composicion-core) | ¿dos ramas declaran el mismo test? predicado + corpus + juez de paridad |
+| [py-test-shadow-guard](https://github.com/alexisromtz-lab/py-test-shadow-guard) | el test que el merge borra en silencio, en tu CI |
+| [merge-lattice-governor](https://github.com/alexisromtz-lab/merge-lattice-governor) | en qué orden aterrizar N ramas sin romper el trinquete |
